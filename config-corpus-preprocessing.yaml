@@ -4,7 +4,7 @@ preprocess_type: sentencepiece
 #one of smt sentencepiece subwordnmt
 
 corpus: corpus-eng-spa.txt
-from_train_val: True
+from_train_val: False
 train_corpus: train-eng-spa.txt
 val_corpus: val-eng-spa.txt
 valsize: 5000
