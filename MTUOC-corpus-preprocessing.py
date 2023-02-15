@@ -933,7 +933,7 @@ if DELETE_TEMP:
         cadena="Deleting temporal files: "+str(datetime.now())
         print(cadena)
         logfile.write(cadena+"\n")
-    todeletetemp=["trainSL.temp","trainTL.temp","trainPreSL.temp","trainPreTL.temp","valPreSL.temp","valPreTL.temp"]
+    todeletetemp=["trainSL.temp","trainTL.temp","trainPreSL.temp","trainPreTL.temp","valPreSL.temp","valPreTL.temp",train-pre-"+SLcode3+"-"+TLcode3+".txt",val-pre-"+SLcode3+"-"+TLcode3+".txt"]
     for td in todeletetemp:
         try:
             os.remove(td)
