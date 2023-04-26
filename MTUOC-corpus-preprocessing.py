@@ -83,6 +83,8 @@ preprocess_type=config["preprocess_type"]
 corpus=config["corpus"]
 valsize=int(config["valsize"])
 evalsize=int(config["evalsize"])
+train_weightsFile=config["train_weights"]
+val_weightsFile=config["val_weights"]
 SLcode3=config["SLcode3"]
 SLcode2=config["SLcode2"]
 TLcode3=config["TLcode3"]
@@ -190,10 +192,8 @@ if VERBOSE:
     logfile=codecs.open(LOGFILE,"w",encoding="utf-8")
 
 if not from_train_val:
-
     #SPLITTING CORPUS
     from MTUOC_train_val_eval import split_corpus
-
     if VERBOSE:
         cadena="Splitting corpus: "+str(datetime.now())
         print(cadena)
@@ -205,13 +205,11 @@ if not from_train_val:
     evalCorpus="eval-"+SLcode3+"-"+TLcode3+".txt"
     trainPreCorpus="train-pre-"+SLcode3+"-"+TLcode3+".txt"
     valPreCorpus="val-pre-"+SLcode3+"-"+TLcode3+".txt"
-
     evalSL="eval."+SLcode2
     evalTL="eval."+TLcode2
     entrada=codecs.open(evalCorpus,"r",encoding="utf-8")
     sortidaSL=codecs.open(evalSL,"w",encoding="utf-8")
     sortidaTL=codecs.open(evalTL,"w",encoding="utf-8")
-
     for linia in entrada:
         linia=linia.rstrip()
         camps=linia.split("\t")
@@ -239,11 +237,17 @@ if VERBOSE:
 entrada=codecs.open(trainCorpus,"r",encoding="utf-8")
 sortidaSL=codecs.open("trainSL.temp","w",encoding="utf-8")
 sortidaTL=codecs.open("trainTL.temp","w",encoding="utf-8")
+sortidaW=codecs.open(train_weightsFile,"w",encoding="utf-8")
 for linia in entrada:
+    linia=linia.rstrip()
     camps=linia.split("\t")
     if len(camps)>=2:
         sortidaSL.write(camps[0]+"\n")
         sortidaTL.write(camps[1]+"\n")
+        if len(camps)>=3:
+            sortidaW.write(camps[2]+"\n")
+        else:
+            sortidaW.write("\n")
 entrada.close()
 sortidaSL.close()
 sortidaTL.close()
@@ -311,6 +315,10 @@ for linia in entrada:
     if len(camps)>=2:
         l1=camps[0]
         l2=camps[1]
+        if len(camps)>=3:
+            weight=camps[2]
+        else:
+            weight=None
         lensl=len(l1)
         lentl=len(l2)
         if TOKENIZE_SL:
@@ -343,13 +351,14 @@ for linia in entrada:
                 toksl=truecaserSL.truecase(toksl)
             if TRUECASE_TL:
                 toktl=truecaserTL.truecase(toktl)
-            
-            cadena=" ".join(toksl.split())+"\t"+" ".join(toktl.split())
+            if not weight==None:
+                cadena=" ".join(toksl.split())+"\t"+" ".join(toktl.split())+"\t"+str(weight)
+            else:
+                cadena=" ".join(toksl.split())+"\t"+" ".join(toktl.split())
             sortida.write(cadena+"\n")
     
 entrada.close()
 sortida.close()
-
 #Val CORPUS
 if VERBOSE:
     cadena="Preprocessing val corpus: "+str(datetime.now())
@@ -366,6 +375,10 @@ for linia in entrada:
     if len(camps)>=2:
         l1=camps[0]
         l2=camps[1]
+        if len(camps)>=3:
+            weight=camps[2]
+        else:
+            weight=None
         lensl=len(l1)
         lentl=len(l2)
         if TOKENIZE_SL:
@@ -400,338 +413,18 @@ for linia in entrada:
             if TRUECASE_TL:
                 toktl=truecaserTL.truecase(toktl)
             
-            cadena=" ".join(toksl.split())+"\t"+" ".join(toktl.split())
+            if not weight==None:
+                cadena=" ".join(toksl.split())+"\t"+" ".join(toktl.split())+"\t"+str(weight)
+            else:
+                cadena=" ".join(toksl.split())+"\t"+" ".join(toktl.split())
             sortida.write(cadena+"\n")
     
 entrada.close()
 sortida.close()
 
 
-if preprocess_type=="smt":
-    #train
-    entrada=codecs.open(trainPreCorpus,"r",encoding="utf-8")
-    nomsl="train.smt."+SLcode2
-    nomtl="train.smt."+TLcode2
-    sortidaSL=codecs.open(nomsl,"w",encoding="utf-8")
-    sortidaTL=codecs.open(nomtl,"w",encoding="utf-8")
-    for linia in entrada:
-        linia=linia.rstrip()
-        try:
-            camps=linia.split("\t")
-            SLsegment=camps[0]
-            TLsegment=camps[1]
-            sortidaSL.write(SLsegment+"\n")
-            sortidaTL.write(TLsegment+"\n")
-        except:
-            pass
-            
-    #val
-    entrada=codecs.open(valPreCorpus,"r",encoding="utf-8")
-    nomsl="val.smt."+SLcode2
-    nomtl="val.smt."+TLcode2
-    sortidaSL=codecs.open(nomsl,"w",encoding="utf-8")
-    sortidaTL=codecs.open(nomtl,"w",encoding="utf-8")
-    for linia in entrada:
-        linia=linia.rstrip()
-        try:
-            camps=linia.split("\t")
-            SLsegment=camps[0]
-            TLsegment=camps[1]
-            sortidaSL.write(SLsegment+"\n")
-            sortidaTL.write(TLsegment+"\n")
-        except:
-            pass
-            
-    if GUIDED_ALIGNMENT:
-        if VERBOSE:
-            cadena="Guided alignment training: "+str(datetime.now())
-            print(cadena)
-            logfile.write(cadena+"\n")
-        if DELETE_EXISTING:
-            FILE="train.smt."+SLcode2+"."+SLcode2+".align" 
-            if os.path.exists(FILE):
-                os.remove(FILE)
-        if ALIGNER=="fast_align":
-            sys.path.append(MTUOC)
-            from MTUOC_guided_alignment_fast_align import guided_alignment_fast_align
-            if VERBOSE:
-                cadena="Fast_align: "+str(datetime.now())
-                print(cadena)
-                logfile.write(cadena+"\n")
-            guided_alignment_fast_align(MTUOC,"train.sp","train.sp",SLcode2,TLcode2,False,VERBOSE)
-            
-        elif ALIGNER=="eflomal":
-            sys.path.append(MTUOC)
-            from MTUOC_guided_alignment_eflomal import guided_alignment_eflomal
-            if VERBOSE:
-                cadena="Eflomal: "+str(datetime.now())
-                print(cadena)
-                logfile.write(cadena+"\n")
-            guided_alignment_eflomal(MTUOC,"train.sp","train.sp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
-            
-        elif ALIGNER=="simalign":
-            sys.path.append(MTUOC)
-            from MTUOC_simalign import *
-            aligner=MTUOC_simalign(device=simalign_device, matching_method=simalign_matching_method,sltokenizer=None,tltokenizer=None)
-            aligner.align_files("train.smt."+SLcode2,"train.smt."+TLcode2,"train.smt."+SLcode2+"."+TLcode2+".align")
-        
-        elif ALIGNER=="awesome":
-            sys.path.append(MTUOC)
-            from MTUOC_awesome_aligner import *
-            awesome_finetune=config["awesome"]["finetune"]
-            awesome_finetune_limit=config["awesome"]["finetune_limit"]
-            if awesome_finetune:
-                FILET1="train.smt."+SLcode2
-                FILET2="train.smt."+TLcode2
-                FILEV1="val.smt."+SLcode2
-                FILEV2="val.smt."+TLcode2
-                if not awesome_finetune_limit==-1:
-                    command="head -n "+str(awesome_finetune_limit)+" "+FILET1+" > awesometrain."+SLcode2+".temp"
-                    os.system(command)
-                    command="head -n "+str(awesome_finetune_limit)+" "+FILET2+" > awesometrain."+TLcode2+".temp"
-                    os.system(command)
-                    FILET1="awesometrain."+SLcode2+".temp"
-                    FILET2="awesometrain."+TLcode2+".temp"
-                    
-                    
-                awesome_finetune_initial_model=config["awesome"]["finetune_initial_model"] 
-                awesome_finetuned_dir=config["awesome"]["finetuned_dir"]
-                awesome_finetune_device=config["awesome"]["finetune_device"]
-                awesome_finetune_cuda_visible_devices=str(config["awesome"]["finetune_cuda_visible_devices"])
-                finetune_awesome(FILET1, FILET2, FILEV1, FILEV2, initial_model=awesome_finetune_initial_model, output_dir=awesome_finetuned_dir,device=awesome_finetune_device, cuda_visible_devices=awesome_finetune_cuda_visible_devices)
-                os.remove("awesometrain."+SLcode2+".temp")
-                os.remove("awesometrain."+TLcode2+".temp")
-            FILE1="train.smt."+SLcode2
-            FILE2="train.smt."+TLcode2
-            OUTPUT_FILE="train.smt."+SLcode2+"."+TLcode2+".align"
-            awesome_align_model=config["awesome"]["align_model"]
-            awesome_align_device=config["awesome"]["align_device"]
-            awesome_align_cuda_visible_devices=str(config["awesome"]["align_cuda_visible_devices"])
-            align_awesome_aligner(FILE1, FILE2, OUTPUT_FILE, model=awesome_align_model, device=awesome_align_device, cuda_visible_devices=awesome_align_cuda_visible_devices)
-        
-        
 
-    if GUIDED_ALIGNMENT_VALID:
-        if VERBOSE:
-                cadena="Guided alignment valid: "+str(datetime.now())
-                print(cadena)
-                logfile.write(cadena+"\n")
-        if DELETE_EXISTING:
-            FILE="val.smt."+SLcode2+"."+SLcode2+".align" 
-            if os.path.exists(FILE):
-                os.remove(FILE)
-            FILE="val.smt."+TLcode2+"."+TLcode2+".align" 
-            if os.path.exists(FILE):
-                os.remove(FILE)            
-        if ALIGNER_VALID=="fast_align":
-            sys.path.append(MTUOC)
-            from MTUOC_guided_alignment_fast_align import guided_alignment_fast_align
-            if VERBOSE:
-                cadena="Fast_align: "+str(datetime.now())
-                print(cadena)
-                logfile.write(cadena+"\n")
-            guided_alignment_fast_align(MTUOC,"val.sp","val.sp",SLcode2,TLcode2,False,VERBOSE)
-            
-        elif ALIGNER_VALID=="eflomal":
-            sys.path.append(MTUOC)
-            from MTUOC_guided_alignment_eflomal import guided_alignment_eflomal
-            guided_alignment_eflomal(MTUOC,"val.sp","val.sp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
-            if VERBOSE:
-                cadena="Eflomal: "+str(datetime.now())
-                print(cadena)
-                logfile.write(cadena+"\n")
-        
-        elif ALIGNER=="simalign":
-            sys.path.append(MTUOC)
-            from MTUOC_simalign import *
-            aligner=MTUOC_simalign(device=simalign_device, matching_method=simalign_matching_method,sltokenizer=None,tltokenizer=None)
-            aligner.align_files("val.smt."+SLcode2,"val.smt."+TLcode2,"val.smt."+SLcode2+"."+TLcode2+".align")
-            
-    
-elif preprocess_type=="subwordnmt":
-    print("SUBWORD NMT BPE")
-    #####################
-    print("Starting BPE training",datetime.now())
-
-    entrada=codecs.open(trainPreCorpus,"r",encoding="utf-8")
-    sortidaSL=codecs.open("trainPreSL.temp","w",encoding="utf-8")
-    sortidaTL=codecs.open("trainPreTL.temp","w",encoding="utf-8")
-
-    for linia in entrada:
-        linia=linia.rstrip()
-        camps=linia.split("\t")
-        if len(camps)>=2:
-            sortidaSL.write(camps[0]+"\n")
-            sortidaTL.write(camps[1]+"\n")
-        else:
-            print("ERROR",camps)
-    entrada.close()
-    sortidaSL.close()
-    sortidaTL.close()
-            
-    entrada=codecs.open(valPreCorpus,"r",encoding="utf-8")
-    sortidaSL=codecs.open("valPreSL.temp","w",encoding="utf-8")
-    sortidaTL=codecs.open("valPreTL.temp","w",encoding="utf-8")
-
-    for linia in entrada:
-        linia=linia.rstrip()
-        camps=linia.split("\t")
-        if len(camps)>=2:
-            sortidaSL.write(camps[0]+"\n")
-            sortidaTL.write(camps[1]+"\n")
-        else:
-            print("ERROR",camps)
-    entrada.close()
-    sortidaSL.close()
-    sortidaTL.close()
-
-    if LEARN_BPE: 
-        if VERBOSE:
-            print("Learning BPE",datetime.now())
-        if JOIN_LANGUAGES: 
-            if VERBOSE: print("JOINING LANGUAGES",datetime.now())
-            subwordnmt_train("trainPreSL.temp trainPreTL.temp",SLcode2=SLcode2,TLcode2=TLcode2,NUM_OPERATIONS=NUM_OPERATIONS,CODES_file="codes_file")
-            
-        else:
-            if VERBOSE: print("SL",datetime.now())
-            subwordnmt_train("trainPreSL.temp",SLcode2=SLcode2,TLcode2="",NUM_OPERATIONS=NUM_OPERATIONS,CODES_FILE="codes_file."+SLcode2)
-           
-            if VERBOSE: print("TL",datetime.now())
-            subwordnmt_train("trainPreTL.temp",SLcode2=TLcode2,TLcode2="",NUM_OPERATIONS=NUM_OPERATIONS,CODES_FILE="codes_file."+TLcode2)
-           
-
-
-    if APPLY_BPE: 
-        if VERBOSE:
-            print("Applying BPE",datetime.now())
-        if JOIN_LANGUAGES:
-            BPESL="codes_file"
-            BPETL="codes_file"
-        if not JOIN_LANGUAGES:
-            BPESL="codes_file."+SLcode2
-            BPETL="codes_file."+TLcode2
-        
-        subwordnmt_encode("trainPreSL.temp","train.bpe."+SLcode2,CODES_FILE=BPESL,VOCAB_FILE="vocab_BPE."+SLcode2,VOCABULARY_THRESHOLD=VOCABULARY_THRESHOLD,JOINER=JOINER,BPE_DROPOUT=BPE_DROPOUT,BPE_DROPOUT_P=BPE_DROPOUT_P,SPLIT_DIGITS=SPLIT_DIGITS,BOS=BOS,EOS=EOS)
-        subwordnmt_encode("trainPreTL.temp","train.bpe."+TLcode2,CODES_FILE=BPETL,VOCAB_FILE="vocab_BPE."+TLcode2,VOCABULARY_THRESHOLD=VOCABULARY_THRESHOLD,JOINER=JOINER,BPE_DROPOUT=BPE_DROPOUT,BPE_DROPOUT_P=BPE_DROPOUT_P,SPLIT_DIGITS=SPLIT_DIGITS,BOS=BOS,EOS=EOS)
-        
-        subwordnmt_encode("valPreSL.temp","val.bpe."+SLcode2,CODES_FILE=BPESL,VOCAB_FILE="vocab_BPE."+SLcode2,VOCABULARY_THRESHOLD=VOCABULARY_THRESHOLD,JOINER=JOINER,BPE_DROPOUT=BPE_DROPOUT,BPE_DROPOUT_P=BPE_DROPOUT_P,SPLIT_DIGITS=SPLIT_DIGITS,BOS=BOS,EOS=EOS)
-        subwordnmt_encode("valPreTL.temp","val.bpe."+TLcode2,CODES_FILE=BPETL,VOCAB_FILE="vocab_BPE."+TLcode2,VOCABULARY_THRESHOLD=VOCABULARY_THRESHOLD,JOINER=JOINER,BPE_DROPOUT=BPE_DROPOUT,BPE_DROPOUT_P=BPE_DROPOUT_P,SPLIT_DIGITS=SPLIT_DIGITS,BOS=BOS,EOS=EOS)
-       
-            
-   
-    
-    if GUIDED_ALIGNMENT:
-        if VERBOSE:
-            cadena="Guided alignment training: "+str(datetime.now())
-            print(cadena)
-            logfile.write(cadena+"\n")
-        if DELETE_EXISTING:
-            FILE="train.bpe."+SLcode2+"."+SLcode2+".align" 
-            if os.path.exists(FILE):
-                os.remove(FILE)
-        if ALIGNER=="fast_align":
-            sys.path.append(MTUOC)
-            from MTUOC_guided_alignment_fast_align import guided_alignment_fast_align
-            if VERBOSE:
-                cadena="Fast_align: "+str(datetime.now())
-                print(cadena)
-                logfile.write(cadena+"\n")
-            guided_alignment_fast_align(MTUOC,"train.sp","train.sp",SLcode2,TLcode2,False,VERBOSE)
-            
-        elif ALIGNER=="eflomal":
-            sys.path.append(MTUOC)
-            from MTUOC_guided_alignment_eflomal import guided_alignment_eflomal
-            if VERBOSE:
-                cadena="Eflomal: "+str(datetime.now())
-                print(cadena)
-                logfile.write(cadena+"\n")
-            guided_alignment_eflomal(MTUOC,"train.sp","train.sp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
-            
-        elif ALIGNER=="simalign":
-            sys.path.append(MTUOC)
-            from MTUOC_simalign import *
-            aligner=MTUOC_simalign(device=simalign_device, matching_method=simalign_matching_method,sltokenizer=None,tltokenizer=None)
-            aligner.align_files("train.bpe."+SLcode2,"train.bpe."+TLcode2,"train.bpe."+SLcode2+"."+TLcode2+".align")
-        
-        elif ALIGNER=="awesome":
-            sys.path.append(MTUOC)
-            from MTUOC_awesome_aligner import *
-            awesome_finetune=config["awesome"]["finetune"]
-            awesome_finetune_limit=config["awesome"]["finetune_limit"]
-            if awesome_finetune:
-                FILET1="train.bpe."+SLcode2
-                FILET2="train.bpe."+TLcode2
-                FILEV1="val.bpe."+SLcode2
-                FILEV2="val.bpe."+TLcode2
-                if not awesome_finetune_limit==-1:
-                    command="head -n "+str(awesome_finetune_limit)+" "+FILET1+" > awesometrain."+SLcode2+".temp"
-                    os.system(command)
-                    command="head -n "+str(awesome_finetune_limit)+" "+FILET2+" > awesometrain."+TLcode2+".temp"
-                    os.system(command)
-                    FILET1="awesometrain."+SLcode2+".temp"
-                    FILET2="awesometrain."+TLcode2+".temp"
-                    
-                    
-                awesome_finetune_initial_model=config["awesome"]["finetune_initial_model"] 
-                awesome_finetuned_dir=config["awesome"]["finetuned_dir"]
-                awesome_finetune_device=config["awesome"]["finetune_device"]
-                awesome_finetune_cuda_visible_devices=str(config["awesome"]["finetune_cuda_visible_devices"])
-                finetune_awesome(FILET1, FILET2, FILEV1, FILEV2, initial_model=awesome_finetune_initial_model, output_dir=awesome_finetuned_dir,device=awesome_finetune_device, cuda_visible_devices=awesome_finetune_cuda_visible_devices)
-                os.remove("awesometrain."+SLcode2+".temp")
-                os.remove("awesometrain."+TLcode2+".temp")
-            FILE1="train.bpe."+SLcode2
-            FILE2="train.bpe."+TLcode2
-            OUTPUT_FILE="train.bpe."+SLcode2+"."+TLcode2+".align"
-            awesome_align_model=config["awesome"]["align_model"]
-            awesome_align_device=config["awesome"]["align_device"]
-            awesome_align_cuda_visible_devices=str(config["awesome"]["align_cuda_visible_devices"])
-            align_awesome_aligner(FILE1, FILE2, OUTPUT_FILE, model=awesome_align_model, device=awesome_align_device, cuda_visible_devices=awesome_align_cuda_visible_devices)
-        
-        
-
-    if GUIDED_ALIGNMENT_VALID:
-        if VERBOSE:
-                cadena="Guided alignment valid: "+str(datetime.now())
-                print(cadena)
-                logfile.write(cadena+"\n")
-        if DELETE_EXISTING:
-            FILE="val.bpe."+SLcode2+"."+SLcode2+".align" 
-            if os.path.exists(FILE):
-                os.remove(FILE)
-            FILE="val.bpe."+TLcode2+"."+TLcode2+".align" 
-            if os.path.exists(FILE):
-                os.remove(FILE)            
-        if ALIGNER_VALID=="fast_align":
-            sys.path.append(MTUOC)
-            from MTUOC_guided_alignment_fast_align import guided_alignment_fast_align
-            if VERBOSE:
-                cadena="Fast_align: "+str(datetime.now())
-                print(cadena)
-                logfile.write(cadena+"\n")
-            guided_alignment_fast_align(MTUOC,"val.sp","val.sp",SLcode2,TLcode2,False,VERBOSE)
-            
-        elif ALIGNER_VALID=="eflomal":
-            sys.path.append(MTUOC)
-            from MTUOC_guided_alignment_eflomal import guided_alignment_eflomal
-            guided_alignment_eflomal(MTUOC,"val.sp","val.sp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
-            if VERBOSE:
-                cadena="Eflomal: "+str(datetime.now())
-                print(cadena)
-                logfile.write(cadena+"\n")
-        
-        elif ALIGNER=="simalign":
-            sys.path.append(MTUOC)
-            from MTUOC_simalign import *
-            aligner=MTUOC_simalign(device=simalign_device, matching_method=simalign_matching_method,sltokenizer=None,tltokenizer=None)
-            aligner.align_files("val.bpe."+SLcode2,"val.bpe."+TLcode2,"val.bpe."+SLcode2+"."+TLcode2+".align")
-                
-        
-    
-    
-    #####################
-    
-else:
-   
+if preprocess_type=="sentencepiece":
     ###sentencepiece is default if no smt or subword-nmt is selected
     if VERBOSE:
         cadena="Start of sentencepiece process: "+str(datetime.now())
@@ -746,6 +439,7 @@ else:
     entrada=codecs.open(trainPreCorpus,"r",encoding="utf-8")
     sortidaSL=codecs.open("trainPreSL.temp","w",encoding="utf-8")
     sortidaTL=codecs.open("trainPreTL.temp","w",encoding="utf-8")
+    sortidaW=codecs.open("trainPreW.temp","w",encoding="utf-8")
 
     for linia in entrada:
         linia=linia.rstrip()
@@ -753,22 +447,32 @@ else:
         if len(camps)>=2:
             sortidaSL.write(camps[0]+"\n")
             sortidaTL.write(camps[1]+"\n")
+            if len(camps)>=3:
+                sortidaW.write(camps[2]+"\n")
+            else:
+                sortidaW.write("\n")
+
         else:
             print("ERROR",camps)
     entrada.close()
     sortidaSL.close()
     sortidaTL.close()
+    sortidaW.close()
             
     entrada=codecs.open(valPreCorpus,"r",encoding="utf-8")
     sortidaSL=codecs.open("valPreSL.temp","w",encoding="utf-8")
     sortidaTL=codecs.open("valPreTL.temp","w",encoding="utf-8")
-
+    sortidaW=codecs.open("valPreW.temp","w",encoding="utf-8")
     for linia in entrada:
         linia=linia.rstrip()
         camps=linia.split("\t")
         if len(camps)>=2:
             sortidaSL.write(camps[0]+"\n")
             sortidaTL.write(camps[1]+"\n")
+            if len(camps)>=3:
+                sortidaW.write(camps[2]+"\n")
+            else:
+                sortidaW.write("\n")
         else:
             print("ERROR",camps)
     entrada.close()
@@ -829,7 +533,8 @@ else:
                 cadena="Fast_align: "+str(datetime.now())
                 print(cadena)
                 logfile.write(cadena+"\n")
-            guided_alignment_fast_align(MTUOC,"train.sp","train.sp",SLcode2,TLcode2,False,VERBOSE)
+            guided_alignment_fast_align(MTUOC,"train.sp","train.sp","trainPreW.temp",SLcode2,TLcode2,False,VERBOSE)
+            copyfile("trainPreW.temp",train_weightsFile)
             
         elif ALIGNER=="eflomal":
             sys.path.append(MTUOC)
@@ -838,7 +543,8 @@ else:
                 cadena="Eflomal: "+str(datetime.now())
                 print(cadena)
                 logfile.write(cadena+"\n")
-            guided_alignment_eflomal(MTUOC,"train.sp","train.sp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
+            guided_alignment_eflomal(MTUOC,"train.sp","train.sp","trainPreW.temp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
+            copyfile("trainPreW.temp",train_weightsFile)
             
         elif ALIGNER=="simalign":
             sys.path.append(MTUOC)
@@ -901,12 +607,14 @@ else:
                 cadena="Fast_align: "+str(datetime.now())
                 print(cadena)
                 logfile.write(cadena+"\n")
-            guided_alignment_fast_align(MTUOC,"val.sp","val.sp",SLcode2,TLcode2,False,VERBOSE)
+            guided_alignment_fast_align(MTUOC,"val.sp","val.sp","valPreW.temp",SLcode2,TLcode2,False,VERBOSE)
+            copyfile("valPreW.temp",val_weightsFile)
             
         elif ALIGNER_VALID=="eflomal":
             sys.path.append(MTUOC)
             from MTUOC_guided_alignment_eflomal import guided_alignment_eflomal
-            guided_alignment_eflomal(MTUOC,"val.sp","val.sp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
+            guided_alignment_eflomal(MTUOC,"val.sp","val.sp","valPreW.temp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
+            copyfile("valPreW.temp",val_weightsFile)
             if VERBOSE:
                 cadena="Eflomal: "+str(datetime.now())
                 print(cadena)
@@ -918,7 +626,358 @@ else:
             aligner=MTUOC_simalign(device=simalign_device, matching_method=simalign_matching_method,sltokenizer=None,tltokenizer=None)
             aligner.align_files("val.sp."+SLcode2,"val.sp."+TLcode2,"val.sp."+SLcode2+"."+TLcode2+".align")
                 
+elif preprocess_type=="subwordnmt":
+    print("SUBWORD NMT BPE")
+    #####################
+    print("Starting BPE training",datetime.now())
+
+    entrada=codecs.open(trainPreCorpus,"r",encoding="utf-8")
+    sortidaSL=codecs.open("trainPreSL.temp","w",encoding="utf-8")
+    sortidaTL=codecs.open("trainPreTL.temp","w",encoding="utf-8")
+    sortidaW=codecs.open("trainPreW.temp","w",encoding="utf-8")
+
+    for linia in entrada:
+        linia=linia.rstrip()
+        camps=linia.split("\t")
+        if len(camps)>=2:
+            sortidaSL.write(camps[0]+"\n")
+            sortidaTL.write(camps[1]+"\n")
+            if len(camps)>=3:
+                sortidaW.write(camps[2]+"\n")
+            else:
+                sortidaW.write("\n")
+        else:
+            print("ERROR",camps)
+    entrada.close()
+    sortidaSL.close()
+    sortidaTL.close()
+            
+    entrada=codecs.open(valPreCorpus,"r",encoding="utf-8")
+    sortidaSL=codecs.open("valPreSL.temp","w",encoding="utf-8")
+    sortidaTL=codecs.open("valPreTL.temp","w",encoding="utf-8")
+    sortidaW=codecs.open("valPreW.temp","w",encoding="utf-8")
+
+    for linia in entrada:
+        linia=linia.rstrip()
+        camps=linia.split("\t")
+        if len(camps)>=2:
+            sortidaSL.write(camps[0]+"\n")
+            sortidaTL.write(camps[1]+"\n")
+            if len(camps)>=3:
+                sortidaW.write(camps[2]+"\n")
+            else:
+                sortidaW.write("\n")
+        else:
+            print("ERROR",camps)
+    entrada.close()
+    sortidaSL.close()
+    sortidaTL.close()
+
+    if LEARN_BPE: 
+        if VERBOSE:
+            print("Learning BPE",datetime.now())
+        if JOIN_LANGUAGES: 
+            if VERBOSE: print("JOINING LANGUAGES",datetime.now())
+            subwordnmt_train("trainPreSL.temp trainPreTL.temp",SLcode2=SLcode2,TLcode2=TLcode2,NUM_OPERATIONS=NUM_OPERATIONS,CODES_file="codes_file")
+
+        else:
+            print("**************NOT JOINING LANGUAGES")
+            if VERBOSE: print("SL",datetime.now())
+            subwordnmt_train("trainPreSL.temp",SLcode2=SLcode2,TLcode2="",NUM_OPERATIONS=NUM_OPERATIONS,CODES_file="codes_file."+SLcode2)
+           
+            if VERBOSE: print("TL",datetime.now())
+            subwordnmt_train("trainPreTL.temp",SLcode2=TLcode2,TLcode2="",NUM_OPERATIONS=NUM_OPERATIONS,CODES_file="codes_file."+TLcode2)
+           
+
+
+    if APPLY_BPE: 
+        if VERBOSE:
+            print("Applying BPE",datetime.now())
+        if JOIN_LANGUAGES:
+            BPESL="codes_file"
+            BPETL="codes_file"
+        if not JOIN_LANGUAGES:
+            BPESL="codes_file."+SLcode2
+            BPETL="codes_file."+TLcode2
         
+        subwordnmt_encode("trainPreSL.temp","train.bpe."+SLcode2,CODES_FILE=BPESL,VOCAB_FILE="vocab_BPE."+SLcode2,VOCABULARY_THRESHOLD=VOCABULARY_THRESHOLD,JOINER=JOINER,BPE_DROPOUT=BPE_DROPOUT,BPE_DROPOUT_P=BPE_DROPOUT_P,SPLIT_DIGITS=SPLIT_DIGITS,BOS=BOS,EOS=EOS)
+        subwordnmt_encode("trainPreTL.temp","train.bpe."+TLcode2,CODES_FILE=BPETL,VOCAB_FILE="vocab_BPE."+TLcode2,VOCABULARY_THRESHOLD=VOCABULARY_THRESHOLD,JOINER=JOINER,BPE_DROPOUT=BPE_DROPOUT,BPE_DROPOUT_P=BPE_DROPOUT_P,SPLIT_DIGITS=SPLIT_DIGITS,BOS=BOS,EOS=EOS)
+        
+        subwordnmt_encode("valPreSL.temp","val.bpe."+SLcode2,CODES_FILE=BPESL,VOCAB_FILE="vocab_BPE."+SLcode2,VOCABULARY_THRESHOLD=VOCABULARY_THRESHOLD,JOINER=JOINER,BPE_DROPOUT=BPE_DROPOUT,BPE_DROPOUT_P=BPE_DROPOUT_P,SPLIT_DIGITS=SPLIT_DIGITS,BOS=BOS,EOS=EOS)
+        subwordnmt_encode("valPreTL.temp","val.bpe."+TLcode2,CODES_FILE=BPETL,VOCAB_FILE="vocab_BPE."+TLcode2,VOCABULARY_THRESHOLD=VOCABULARY_THRESHOLD,JOINER=JOINER,BPE_DROPOUT=BPE_DROPOUT,BPE_DROPOUT_P=BPE_DROPOUT_P,SPLIT_DIGITS=SPLIT_DIGITS,BOS=BOS,EOS=EOS)
+       
+            
+   
+    
+    if GUIDED_ALIGNMENT:
+        if VERBOSE:
+            cadena="Guided alignment training: "+str(datetime.now())
+            print(cadena)
+            logfile.write(cadena+"\n")
+        if DELETE_EXISTING:
+            FILE="train.bpe."+SLcode2+"."+SLcode2+".align" 
+            if os.path.exists(FILE):
+                os.remove(FILE)
+        if ALIGNER=="fast_align":
+            sys.path.append(MTUOC)
+            from MTUOC_guided_alignment_fast_align import guided_alignment_fast_align
+            if VERBOSE:
+                cadena="Fast_align: "+str(datetime.now())
+                print(cadena)
+                logfile.write(cadena+"\n")
+            guided_alignment_fast_align(MTUOC,"train.bpe","train.bpe","trainPreW.temp",SLcode2,TLcode2,False,VERBOSE)
+            copyfile("trainPreW.temp",train_weightsFile)
+            
+        elif ALIGNER=="eflomal":
+            sys.path.append(MTUOC)
+            from MTUOC_guided_alignment_eflomal import guided_alignment_eflomal
+            if VERBOSE:
+                cadena="Eflomal: "+str(datetime.now())
+                print(cadena)
+                logfile.write(cadena+"\n")
+            guided_alignment_eflomal(MTUOC,"train.bpe","train.bpe","trainPreW.temp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
+            copyfile("trainPreW.temp",train_weightsFile)
+            
+        elif ALIGNER=="simalign":
+            sys.path.append(MTUOC)
+            from MTUOC_simalign import *
+            aligner=MTUOC_simalign(device=simalign_device, matching_method=simalign_matching_method,sltokenizer=None,tltokenizer=None)
+            aligner.align_files("train.bpe."+SLcode2,"train.bpe."+TLcode2,"train.bpe."+SLcode2+"."+TLcode2+".align")
+        
+        elif ALIGNER=="awesome":
+            sys.path.append(MTUOC)
+            from MTUOC_awesome_aligner import *
+            awesome_finetune=config["awesome"]["finetune"]
+            awesome_finetune_limit=config["awesome"]["finetune_limit"]
+            if awesome_finetune:
+                FILET1="train.bpe."+SLcode2
+                FILET2="train.bpe."+TLcode2
+                FILEV1="val.bpe."+SLcode2
+                FILEV2="val.bpe."+TLcode2
+                if not awesome_finetune_limit==-1:
+                    command="head -n "+str(awesome_finetune_limit)+" "+FILET1+" > awesometrain."+SLcode2+".temp"
+                    os.system(command)
+                    command="head -n "+str(awesome_finetune_limit)+" "+FILET2+" > awesometrain."+TLcode2+".temp"
+                    os.system(command)
+                    FILET1="awesometrain."+SLcode2+".temp"
+                    FILET2="awesometrain."+TLcode2+".temp"
+                    
+                    
+                awesome_finetune_initial_model=config["awesome"]["finetune_initial_model"] 
+                awesome_finetuned_dir=config["awesome"]["finetuned_dir"]
+                awesome_finetune_device=config["awesome"]["finetune_device"]
+                awesome_finetune_cuda_visible_devices=str(config["awesome"]["finetune_cuda_visible_devices"])
+                finetune_awesome(FILET1, FILET2, FILEV1, FILEV2, initial_model=awesome_finetune_initial_model, output_dir=awesome_finetuned_dir,device=awesome_finetune_device, cuda_visible_devices=awesome_finetune_cuda_visible_devices)
+                os.remove("awesometrain."+SLcode2+".temp")
+                os.remove("awesometrain."+TLcode2+".temp")
+            FILE1="train.bpe."+SLcode2
+            FILE2="train.bpe."+TLcode2
+            OUTPUT_FILE="train.bpe."+SLcode2+"."+TLcode2+".align"
+            awesome_align_model=config["awesome"]["align_model"]
+            awesome_align_device=config["awesome"]["align_device"]
+            awesome_align_cuda_visible_devices=str(config["awesome"]["align_cuda_visible_devices"])
+            align_awesome_aligner(FILE1, FILE2, OUTPUT_FILE, model=awesome_align_model, device=awesome_align_device, cuda_visible_devices=awesome_align_cuda_visible_devices)
+        
+        
+
+    if GUIDED_ALIGNMENT_VALID:
+        if VERBOSE:
+                cadena="Guided alignment valid: "+str(datetime.now())
+                print(cadena)
+                logfile.write(cadena+"\n")
+        if DELETE_EXISTING:
+            FILE="val.bpe."+SLcode2+"."+SLcode2+".align" 
+            if os.path.exists(FILE):
+                os.remove(FILE)
+            FILE="val.bpe."+TLcode2+"."+TLcode2+".align" 
+            if os.path.exists(FILE):
+                os.remove(FILE)            
+        if ALIGNER_VALID=="fast_align":
+            sys.path.append(MTUOC)
+            from MTUOC_guided_alignment_fast_align import guided_alignment_fast_align
+            if VERBOSE:
+                cadena="Fast_align: "+str(datetime.now())
+                print(cadena)
+                logfile.write(cadena+"\n")
+            guided_alignment_fast_align(MTUOC,"val.sp","val.sp","valPreW.temp",SLcode2,TLcode2,False,VERBOSE)
+            copyfile("valPreW.temp",val_weightsFile)
+            
+        elif ALIGNER_VALID=="eflomal":
+            sys.path.append(MTUOC)
+            from MTUOC_guided_alignment_eflomal import guided_alignment_eflomal
+            guided_alignment_eflomal(MTUOC,"val.sp","val.sp","valPreW.temp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
+            copyfile("valPreW.temp",val_weightsFile)
+            if VERBOSE:
+                cadena="Eflomal: "+str(datetime.now())
+                print(cadena)
+                logfile.write(cadena+"\n")
+        
+        elif ALIGNER=="simalign":
+            sys.path.append(MTUOC)
+            from MTUOC_simalign import *
+            aligner=MTUOC_simalign(device=simalign_device, matching_method=simalign_matching_method,sltokenizer=None,tltokenizer=None)
+            aligner.align_files("val.bpe."+SLcode2,"val.bpe."+TLcode2,"val.bpe."+SLcode2+"."+TLcode2+".align")
+                
+        
+    
+    
+    #####################
+
+
+elif preprocess_type=="smt":
+    #train
+    entrada=codecs.open(trainPreCorpus,"r",encoding="utf-8")
+    nomsl="train.smt."+SLcode2
+    nomtl="train.smt."+TLcode2
+    sortidaSL=codecs.open(nomsl,"w",encoding="utf-8")
+    sortidaTL=codecs.open(nomtl,"w",encoding="utf-8")
+    sortidaW=codecs.open("trainPreW.temp","w",encoding="utf-8")
+    for linia in entrada:
+        linia=linia.rstrip()
+        try:
+            camps=linia.split("\t")
+            SLsegment=camps[0]
+            TLsegment=camps[1]
+            sortidaSL.write(SLsegment+"\n")
+            sortidaTL.write(TLsegment+"\n")
+            if len(camps)>=3:
+                sortidaW.write(camps[2]+"\n")
+            else:
+                sortidaW.write("\n")
+        except:
+            pass
+            
+    #val
+    entrada=codecs.open(valPreCorpus,"r",encoding="utf-8")
+    nomsl="val.smt."+SLcode2
+    nomtl="val.smt."+TLcode2
+    sortidaSL=codecs.open(nomsl,"w",encoding="utf-8")
+    sortidaTL=codecs.open(nomtl,"w",encoding="utf-8")
+    sortidaW=codecs.open("valPreW.temp","w",encoding="utf-8")
+    for linia in entrada:
+        linia=linia.rstrip()
+        try:
+            camps=linia.split("\t")
+            SLsegment=camps[0]
+            TLsegment=camps[1]
+            sortidaSL.write(SLsegment+"\n")
+            sortidaTL.write(TLsegment+"\n")
+            if len(camps)>=3:
+                sortidaW.write(camps[2]+"\n")
+            else:
+                sortidaW.write("\n")
+        except:
+            pass
+            
+    if GUIDED_ALIGNMENT:
+        if VERBOSE:
+            cadena="Guided alignment training: "+str(datetime.now())
+            print(cadena)
+            logfile.write(cadena+"\n")
+        if DELETE_EXISTING:
+            FILE="train.smt."+SLcode2+"."+SLcode2+".align" 
+            if os.path.exists(FILE):
+                os.remove(FILE)
+        if ALIGNER=="fast_align":
+            sys.path.append(MTUOC)
+            from MTUOC_guided_alignment_fast_align import guided_alignment_fast_align
+            if VERBOSE:
+                cadena="Fast_align: "+str(datetime.now())
+                print(cadena)
+                logfile.write(cadena+"\n")
+            guided_alignment_fast_align(MTUOC,"train.smt","train.smt","trainPreW.temp",SLcode2,TLcode2,False,VERBOSE)
+            copyfile("trainPreW.temp",train_weightsFile)
+            
+        elif ALIGNER=="eflomal":
+            sys.path.append(MTUOC)
+            from MTUOC_guided_alignment_eflomal import guided_alignment_eflomal
+            if VERBOSE:
+                cadena="Eflomal: "+str(datetime.now())
+                print(cadena)
+                logfile.write(cadena+"\n")
+            guided_alignment_eflomal(MTUOC,"train.smt","train.smt","trainPreW.temp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
+            copyfile("trainPreW.temp",train_weightsFile)
+            
+        elif ALIGNER=="simalign":
+            sys.path.append(MTUOC)
+            from MTUOC_simalign import *
+            aligner=MTUOC_simalign(device=simalign_device, matching_method=simalign_matching_method,sltokenizer=None,tltokenizer=None)
+            aligner.align_files("train.smt."+SLcode2,"train.smt."+TLcode2,"train.smt."+SLcode2+"."+TLcode2+".align")
+        
+        elif ALIGNER=="awesome":
+            sys.path.append(MTUOC)
+            from MTUOC_awesome_aligner import *
+            awesome_finetune=config["awesome"]["finetune"]
+            awesome_finetune_limit=config["awesome"]["finetune_limit"]
+            if awesome_finetune:
+                FILET1="train.smt."+SLcode2
+                FILET2="train.smt."+TLcode2
+                FILEV1="val.smt."+SLcode2
+                FILEV2="val.smt."+TLcode2
+                if not awesome_finetune_limit==-1:
+                    command="head -n "+str(awesome_finetune_limit)+" "+FILET1+" > awesometrain."+SLcode2+".temp"
+                    os.system(command)
+                    command="head -n "+str(awesome_finetune_limit)+" "+FILET2+" > awesometrain."+TLcode2+".temp"
+                    os.system(command)
+                    FILET1="awesometrain."+SLcode2+".temp"
+                    FILET2="awesometrain."+TLcode2+".temp"
+                    
+                    
+                awesome_finetune_initial_model=config["awesome"]["finetune_initial_model"] 
+                awesome_finetuned_dir=config["awesome"]["finetuned_dir"]
+                awesome_finetune_device=config["awesome"]["finetune_device"]
+                awesome_finetune_cuda_visible_devices=str(config["awesome"]["finetune_cuda_visible_devices"])
+                finetune_awesome(FILET1, FILET2, FILEV1, FILEV2, initial_model=awesome_finetune_initial_model, output_dir=awesome_finetuned_dir,device=awesome_finetune_device, cuda_visible_devices=awesome_finetune_cuda_visible_devices)
+                os.remove("awesometrain."+SLcode2+".temp")
+                os.remove("awesometrain."+TLcode2+".temp")
+            FILE1="train.smt."+SLcode2
+            FILE2="train.smt."+TLcode2
+            OUTPUT_FILE="train.smt."+SLcode2+"."+TLcode2+".align"
+            awesome_align_model=config["awesome"]["align_model"]
+            awesome_align_device=config["awesome"]["align_device"]
+            awesome_align_cuda_visible_devices=str(config["awesome"]["align_cuda_visible_devices"])
+            align_awesome_aligner(FILE1, FILE2, OUTPUT_FILE, model=awesome_align_model, device=awesome_align_device, cuda_visible_devices=awesome_align_cuda_visible_devices)
+        
+        
+
+    if GUIDED_ALIGNMENT_VALID:
+        if VERBOSE:
+                cadena="Guided alignment valid: "+str(datetime.now())
+                print(cadena)
+                logfile.write(cadena+"\n")
+        if DELETE_EXISTING:
+            FILE="val.smt."+SLcode2+"."+SLcode2+".align" 
+            if os.path.exists(FILE):
+                os.remove(FILE)
+            FILE="val.smt."+TLcode2+"."+TLcode2+".align" 
+            if os.path.exists(FILE):
+                os.remove(FILE)            
+        if ALIGNER_VALID=="fast_align":
+            sys.path.append(MTUOC)
+            from MTUOC_guided_alignment_fast_align import guided_alignment_fast_align
+            if VERBOSE:
+                cadena="Fast_align: "+str(datetime.now())
+                print(cadena)
+                logfile.write(cadena+"\n")
+            guided_alignment_fast_align(MTUOC,"val.sp","val.sp","valPreW.temp",SLcode2,TLcode2,False,VERBOSE)
+            copyfile("valPreW.temp",val_weightsFile)
+            
+        elif ALIGNER_VALID=="eflomal":
+            sys.path.append(MTUOC)
+            from MTUOC_guided_alignment_eflomal import guided_alignment_eflomal
+            guided_alignment_eflomal(MTUOC,"val.sp","val.sp","valPreW.temp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
+            copyfile("valPreW.temp",val_weightsFile)
+            if VERBOSE:
+                cadena="Eflomal: "+str(datetime.now())
+                print(cadena)
+                logfile.write(cadena+"\n")
+        
+        elif ALIGNER=="simalign":
+            sys.path.append(MTUOC)
+            from MTUOC_simalign import *
+            aligner=MTUOC_simalign(device=simalign_device, matching_method=simalign_matching_method,sltokenizer=None,tltokenizer=None)
+            aligner.align_files("val.smt."+SLcode2,"val.smt."+TLcode2,"val.smt."+SLcode2+"."+TLcode2+".align")
+            
 
 if VERBOSE:
     cadena="End of process: "+str(datetime.now())
