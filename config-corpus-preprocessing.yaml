@@ -3,26 +3,26 @@ MTUOC: /MTUOC
 preprocess_type: subwordnmt
 #one of smt sentencepiece subwordnmt
 
-corpus: all-selected-09-rus-eng.txt
+corpus: corpus-eng-spa.txt
 from_train_val: True
-train_corpus: train-rus-eng.txt
-val_corpus: val-rus-eng.txt
+train_corpus: train-eng-spa.txt
+val_corpus: val-eng-spa.txt
 valsize: 5000
 evalsize: 5000
 train_weights: train-weights.txt
 val_weights: val-weights.txt
-SLcode3: rus
-SLcode2: ru
-TLcode3: eng
-TLcode2: en
+SLcode3: eng
+SLcode2: en
+TLcode3: spa
+TLcode2: es
 
-SL_DICT: /MTUOC/rus.dict
-TL_DICT: /MTUOC/eng.dict
+SL_DICT: /MTUOC/eng.dict
+TL_DICT: /MTUOC/spa.dict
 #state None or null.dict if not word form dictionary available for that languages
 
-SL_TOKENIZER: MTUOC_tokenizer_rus.py
+SL_TOKENIZER: MTUOC_tokenizer_eng.py
 TOKENIZE_SL: False
-TL_TOKENIZER: MTUOC_tokenizer_eng.py
+TL_TOKENIZER: MTUOC_tokenizer_spa.py
 TOKENIZE_TL: False
 
 ###PREPARATION
@@ -53,7 +53,7 @@ bos: <s>
 #<s> or None
 eos: </s>
 #</s> or None
-JOIN_LANGUAGES: False
+JOIN_LANGUAGES: True
 SPLIT_DIGITS: True
 VOCABULARY_THRESHOLD: 50
 
