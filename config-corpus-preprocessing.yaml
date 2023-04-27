@@ -1,6 +1,6 @@
 MTUOC: /MTUOC
 
-preprocess_type: subwordnmt
+preprocess_type: sentencepiece
 #one of smt sentencepiece subwordnmt
 
 corpus: corpus-eng-spa.txt
