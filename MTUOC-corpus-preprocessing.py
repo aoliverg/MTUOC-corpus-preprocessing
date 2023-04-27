@@ -799,13 +799,13 @@ elif preprocess_type=="subwordnmt":
                 cadena="Fast_align: "+str(datetime.now())
                 print(cadena)
                 logfile.write(cadena+"\n")
-            guided_alignment_fast_align(MTUOC,"val.sp","val.sp","valPreW.temp",SLcode2,TLcode2,False,VERBOSE)
+            guided_alignment_fast_align(MTUOC,"val.bpe","val.bpe","valPreW.temp",SLcode2,TLcode2,False,VERBOSE)
             copyfile("valPreW.temp",val_weightsFile)
             
         elif ALIGNER_VALID=="eflomal":
             sys.path.append(MTUOC)
             from MTUOC_guided_alignment_eflomal import guided_alignment_eflomal
-            guided_alignment_eflomal(MTUOC,"val.sp","val.sp","valPreW.temp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
+            guided_alignment_eflomal(MTUOC,"val.bpe","val.bpe","valPreW.temp",SLcode2,TLcode2,SPLIT_LIMIT,VERBOSE)
             copyfile("valPreW.temp",val_weightsFile)
             if VERBOSE:
                 cadena="Eflomal: "+str(datetime.now())
